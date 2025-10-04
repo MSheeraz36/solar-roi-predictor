@@ -230,12 +230,152 @@ else:
     
     st.markdown("---")
     
+    # Add comparison feature
+    st.subheader("🔄 Compare Multiple Locations")
+    
+    with st.expander("📍 Compare 2-3 Locations Side-by-Side", expanded=False):
+        st.write("Enter coordinates for up to 3 locations to compare their solar potential:")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.write("**Location 1**")
+            lat1 = st.number_input("Lat 1", -90.0, 90.0, 33.45, key="lat1")
+            lon1 = st.number_input("Lon 1", -180.0, 180.0, -112.07, key="lon1")
+            name1 = st.text_input("Name (optional)", "Phoenix, AZ", key="name1")
+        
+        with col2:
+            st.write("**Location 2**")
+            lat2 = st.number_input("Lat 2", -90.0, 90.0, 36.17, key="lat2")
+            lon2 = st.number_input("Lon 2", -180.0, 180.0, -115.14, key="lon2")
+            name2 = st.text_input("Name (optional)", "Las Vegas, NV", key="name2")
+        
+        with col3:
+            st.write("**Location 3**")
+            lat3 = st.number_input("Lat 3", -90.0, 90.0, 25.76, key="lat3")
+            lon3 = st.number_input("Lon 3", -180.0, 180.0, -80.19, key="lon3")
+            name3 = st.text_input("Name (optional)", "Miami, FL", key="name3")
+        
+        comp_system_size = st.slider("System Size for Comparison (kW)", 10, 1000, 100, key="comp_size")
+        comp_elec_rate = st.slider("Electricity Rate for Comparison ($/kWh)", 0.05, 0.30, 0.12, 0.01, key="comp_rate")
+        
+        if st.button("🔍 Compare Locations", type="primary"):
+            locations = [
+                (lat1, lon1, name1),
+                (lat2, lon2, name2),
+                (lat3, lon3, name3)
+            ]
+            
+            comparison_data = []
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for idx, (lat, lon, name) in enumerate(locations):
+                status_text.text(f"Fetching data for {name}...")
+                
+                solar_df = get_solar_data(lat, lon, '2024-01-01', '2024-12-31')
+                
+                if solar_df is not None:
+                    avg_irradiance = solar_df['solar_irradiance'].mean()
+                    
+                    calculator = SolarROICalculator()
+                    results = calculator.calculate_roi(avg_irradiance, comp_system_size, comp_elec_rate)
+                    
+                    comparison_data.append({
+                        'Location': name,
+                        'Latitude': lat,
+                        'Longitude': lon,
+                        'Avg Irradiance (kWh/m²/day)': f"{avg_irradiance:.2f}",
+                        'ROI (%)': f"{results['roi_percent']:.1f}%",
+                        'Payback (years)': f"{results['payback_period_years']:.1f}",
+                        'Annual Production (kWh)': f"{results['annual_production_kwh']:,.0f}",
+                        'Net Profit ($)': f"${results['net_profit']:,.0f}"
+                    })
+                
+                progress_bar.progress((idx + 1) / 3)
+            
+            status_text.text("✅ Comparison complete!")
+            
+            # Display comparison table
+            st.subheader("📊 Comparison Results")
+            
+            import pandas as pd
+            df_comparison = pd.DataFrame(comparison_data)
+            st.dataframe(df_comparison, use_container_width=True)
+            
+            # Visual comparison charts
+            st.subheader("📈 Visual Comparison")
+            
+            import plotly.graph_objects as go
+            
+            # ROI Comparison Bar Chart
+            fig_roi = go.Figure(data=[
+                go.Bar(
+                    x=[item['Location'] for item in comparison_data],
+                    y=[float(item['ROI (%)'].strip('%')) for item in comparison_data],
+                    text=[item['ROI (%)'] for item in comparison_data],
+                    textposition='auto',
+                    marker_color=['#10b981', '#3b82f6', '#f59e0b']
+                )
+            ])
+            fig_roi.update_layout(
+                title="ROI Comparison",
+                xaxis_title="Location",
+                yaxis_title="ROI (%)",
+                height=400
+            )
+            st.plotly_chart(fig_roi, use_container_width=True)
+            
+            # Payback Period Comparison
+            fig_payback = go.Figure(data=[
+                go.Bar(
+                    x=[item['Location'] for item in comparison_data],
+                    y=[float(item['Payback (years)']) for item in comparison_data],
+                    text=[item['Payback (years)'] for item in comparison_data],
+                    textposition='auto',
+                    marker_color=['#ef4444', '#8b5cf6', '#ec4899']
+                )
+            ])
+            fig_payback.update_layout(
+                title="Payback Period Comparison",
+                xaxis_title="Location",
+                yaxis_title="Years",
+                height=400
+            )
+            st.plotly_chart(fig_payback, use_container_width=True)
+            
+            # Map with all locations
+            st.subheader("🗺️ All Locations on Map")
+            
+            import folium
+            from streamlit_folium import st_folium
+            
+            # Calculate center point
+            avg_lat = sum([loc[0] for loc in locations]) / 3
+            avg_lon = sum([loc[1] for loc in locations]) / 3
+            
+            m = folium.Map(location=[avg_lat, avg_lon], zoom_start=4)
+            
+            colors = ['red', 'blue', 'green']
+            for idx, (lat, lon, name) in enumerate(locations):
+                folium.Marker(
+                    [lat, lon],
+                    popup=f"<b>{name}</b><br>{comparison_data[idx]['ROI (%)']} ROI",
+                    icon=folium.Icon(color=colors[idx], icon='sun', prefix='fa')
+                ).add_to(m)
+            
+            st_folium(m, width=700, height=500)
+    
+    st.markdown("---")
+    
     st.subheader("How it works:")
     st.markdown("""
     1. **Enter GPS coordinates** of your desired location
     2. **Set system size** and electricity rate
     3. **Get real NASA satellite data** for solar irradiance
     4. **See detailed ROI analysis** with 25-year projections
+    5. **Compare multiple locations** to find the best spot
     """)
     
     st.subheader("What you'll get:")
@@ -247,4 +387,5 @@ else:
     - ✅ Historical solar irradiance data
     - ✅ Interactive cash flow charts
     - ✅ Location maps
+    - ✅ Multi-location comparison
     """)

@@ -61,7 +61,7 @@ if st.session_state.analyzed:
         st.session_state.electricity_rate != electricity_rate):
         
         with st.spinner("🛰️ Fetching NASA satellite data..."):
-            solar_df = get_solar_data(st.session_state.latitude, st.session_state.longitude, '2023-01-01', '2023-12-31')
+            solar_df = get_solar_data(st.session_state.latitude, st.session_state.longitude, '2024-01-01', '2024-12-31')
             
         if solar_df is not None:
             avg_irradiance = solar_df['solar_irradiance'].mean()
@@ -126,7 +126,7 @@ if st.session_state.analyzed:
         
         # Show irradiance chart
         st.divider()
-        st.subheader("📈 Daily Solar Irradiance - 2023")
+        st.subheader("📈 Daily Solar Irradiance - 2024")
         st.line_chart(solar_df, use_container_width=True)
         
         # Download data option

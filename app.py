@@ -19,6 +19,10 @@ if 'solar_df' not in st.session_state:
     st.session_state.solar_df = None
 if 'avg_irradiance' not in st.session_state:
     st.session_state.avg_irradiance = None
+if 'comparison_done' not in st.session_state:
+    st.session_state.comparison_done = False
+if 'comparison_data' not in st.session_state:
+    st.session_state.comparison_data = None
 
 # Header
 st.title("☀️ Solar Farm ROI Predictor")
@@ -259,113 +263,121 @@ else:
         comp_system_size = st.slider("System Size for Comparison (kW)", 10, 1000, 100, key="comp_size")
         comp_elec_rate = st.slider("Electricity Rate for Comparison ($/kWh)", 0.05, 0.30, 0.12, 0.01, key="comp_rate")
         
-        if st.button("🔍 Compare Locations", type="primary"):
-            locations = [
-                (lat1, lon1, name1),
-                (lat2, lon2, name2),
-                (lat3, lon3, name3)
-            ]
+if st.button("🔍 Compare Locations", type="primary"):
+    st.session_state.comparison_done = True
+    
+if st.session_state.comparison_done:
+    locations = [
+        (lat1, lon1, name1),
+        (lat2, lon2, name2),
+        (lat3, lon3, name3)
+    ]
+    
+    # Only fetch if we don't have data yet
+    if st.session_state.comparison_data is None:
+        comparison_data = []
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for idx, (lat, lon, name) in enumerate(locations):
+            status_text.text(f"Fetching data for {name}...")
             
-            comparison_data = []
+            solar_df = get_solar_data(lat, lon, '2024-01-01', '2024-12-31')
             
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for idx, (lat, lon, name) in enumerate(locations):
-                status_text.text(f"Fetching data for {name}...")
+            if solar_df is not None:
+                avg_irradiance = solar_df['solar_irradiance'].mean()
                 
-                solar_df = get_solar_data(lat, lon, '2024-01-01', '2024-12-31')
+                calculator = SolarROICalculator()
+                results = calculator.calculate_roi(avg_irradiance, comp_system_size, comp_elec_rate)
                 
-                if solar_df is not None:
-                    avg_irradiance = solar_df['solar_irradiance'].mean()
-                    
-                    calculator = SolarROICalculator()
-                    results = calculator.calculate_roi(avg_irradiance, comp_system_size, comp_elec_rate)
-                    
-                    comparison_data.append({
-                        'Location': name,
-                        'Latitude': lat,
-                        'Longitude': lon,
-                        'Avg Irradiance (kWh/m²/day)': f"{avg_irradiance:.2f}",
-                        'ROI (%)': f"{results['roi_percent']:.1f}%",
-                        'Payback (years)': f"{results['payback_period_years']:.1f}",
-                        'Annual Production (kWh)': f"{results['annual_production_kwh']:,.0f}",
-                        'Net Profit ($)': f"${results['net_profit']:,.0f}"
-                    })
-                
-                progress_bar.progress((idx + 1) / 3)
+                comparison_data.append({
+                    'Location': name,
+                    'Latitude': lat,
+                    'Longitude': lon,
+                    'Avg Irradiance (kWh/m²/day)': f"{avg_irradiance:.2f}",
+                    'ROI (%)': f"{results['roi_percent']:.1f}%",
+                    'Payback (years)': f"{results['payback_period_years']:.1f}",
+                    'Annual Production (kWh)': f"{results['annual_production_kwh']:,.0f}",
+                    'Net Profit ($)': f"${results['net_profit']:,.0f}"
+                })
             
-            status_text.text("✅ Comparison complete!")
-            
-            # Display comparison table
-            st.subheader("📊 Comparison Results")
-            
-            import pandas as pd
-            df_comparison = pd.DataFrame(comparison_data)
-            st.dataframe(df_comparison, use_container_width=True)
-            
-            # Visual comparison charts
-            st.subheader("📈 Visual Comparison")
-            
-            import plotly.graph_objects as go
-            
-            # ROI Comparison Bar Chart
-            fig_roi = go.Figure(data=[
-                go.Bar(
-                    x=[item['Location'] for item in comparison_data],
-                    y=[float(item['ROI (%)'].strip('%')) for item in comparison_data],
-                    text=[item['ROI (%)'] for item in comparison_data],
-                    textposition='auto',
-                    marker_color=['#10b981', '#3b82f6', '#f59e0b']
-                )
-            ])
-            fig_roi.update_layout(
-                title="ROI Comparison",
-                xaxis_title="Location",
-                yaxis_title="ROI (%)",
-                height=400
-            )
-            st.plotly_chart(fig_roi, use_container_width=True)
-            
-            # Payback Period Comparison
-            fig_payback = go.Figure(data=[
-                go.Bar(
-                    x=[item['Location'] for item in comparison_data],
-                    y=[float(item['Payback (years)']) for item in comparison_data],
-                    text=[item['Payback (years)'] for item in comparison_data],
-                    textposition='auto',
-                    marker_color=['#ef4444', '#8b5cf6', '#ec4899']
-                )
-            ])
-            fig_payback.update_layout(
-                title="Payback Period Comparison",
-                xaxis_title="Location",
-                yaxis_title="Years",
-                height=400
-            )
-            st.plotly_chart(fig_payback, use_container_width=True)
-            
-            # Map with all locations
-            st.subheader("🗺️ All Locations on Map")
-            
-            import folium
-            from streamlit_folium import st_folium
-            
-            # Calculate center point
-            avg_lat = sum([loc[0] for loc in locations]) / 3
-            avg_lon = sum([loc[1] for loc in locations]) / 3
-            
-            m = folium.Map(location=[avg_lat, avg_lon], zoom_start=4)
-            
-            colors = ['red', 'blue', 'green']
-            for idx, (lat, lon, name) in enumerate(locations):
-                folium.Marker(
-                    [lat, lon],
-                    popup=f"<b>{name}</b><br>{comparison_data[idx]['ROI (%)']} ROI",
-                    icon=folium.Icon(color=colors[idx], icon='sun', prefix='fa')
-                ).add_to(m)
-            
-            st_folium(m, width=700, height=500)
+            progress_bar.progress((idx + 1) / 3)
+        
+        status_text.text("✅ Comparison complete!")
+        st.session_state.comparison_data = comparison_data
+    else:
+        comparison_data = st.session_state.comparison_data
+    
+    # Display comparison table
+    st.subheader("📊 Comparison Results")
+    
+    import pandas as pd
+    df_comparison = pd.DataFrame(comparison_data)
+    st.dataframe(df_comparison, use_container_width=True)
+    
+    # Visual comparison charts
+    st.subheader("📈 Visual Comparison")
+    
+    import plotly.graph_objects as go
+    
+    # ROI Comparison Bar Chart
+    fig_roi = go.Figure(data=[
+        go.Bar(
+            x=[item['Location'] for item in comparison_data],
+            y=[float(item['ROI (%)'].strip('%')) for item in comparison_data],
+            text=[item['ROI (%)'] for item in comparison_data],
+            textposition='auto',
+            marker_color=['#10b981', '#3b82f6', '#f59e0b']
+        )
+    ])
+    fig_roi.update_layout(
+        title="ROI Comparison",
+        xaxis_title="Location",
+        yaxis_title="ROI (%)",
+        height=400
+    )
+    st.plotly_chart(fig_roi, use_container_width=True)
+    
+    # Payback Period Comparison
+    fig_payback = go.Figure(data=[
+        go.Bar(
+            x=[item['Location'] for item in comparison_data],
+            y=[float(item['Payback (years)']) for item in comparison_data],
+            text=[item['Payback (years)'] for item in comparison_data],
+            textposition='auto',
+            marker_color=['#ef4444', '#8b5cf6', '#ec4899']
+        )
+    ])
+    fig_payback.update_layout(
+        title="Payback Period Comparison",
+        xaxis_title="Location",
+        yaxis_title="Years",
+        height=400
+    )
+    st.plotly_chart(fig_payback, use_container_width=True)
+    
+    # Map with all locations
+    st.subheader("🗺️ All Locations on Map")
+    
+    import folium
+    from streamlit_folium import st_folium
+    
+    # Calculate center point
+    avg_lat = sum([loc[0] for loc in locations]) / 3
+    avg_lon = sum([loc[1] for loc in locations]) / 3
+    
+    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=4)
+    
+    colors = ['red', 'blue', 'green']
+    for idx, (lat, lon, name) in enumerate(locations):
+        folium.Marker(
+            [lat, lon],
+            popup=f"<b>{name}</b><br>{comparison_data[idx]['ROI (%)']} ROI",
+            icon=folium.Icon(color=colors[idx], icon='sun', prefix='fa')
+        ).add_to(m)
+    
+    st_folium(m, width=700, height=500)
     
     st.markdown("---")
     

@@ -174,8 +174,7 @@ with col1:
         <div class="member-name">Muhammad Sheeraz</div>
         <div class="member-role">ML Engineer & Full-Stack Developer</div>
         <div class="member-bio">
-            Machine learning expert with 5+ years in mobile development.
-            Specializes in model training, deployment, and Flutter/Dart applications.
+            Machine learning expert with 5+ years in mobile development, specializing in model training, optimization, and deployment. Experienced in building intelligent, scalable solutions that bridge data science and software engineering.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -187,8 +186,7 @@ with col2:
         <div class="member-name">Sonia Irfan</div>
         <div class="member-role">Financial Analytics Expert</div>
         <div class="member-bio">
-            Expert in financial modeling and data-driven decision making.
-            Ensures accurate ROI calculations and realistic investment projections.
+            ACCA-qualified and B.Com (Hons.) graduate with 7 years in teaching and finance. Taught Stanford’s Code in Place (Python 106A) and winner of Harvard Puzzle Day. Passionate about AI, ML, and sustainable, tech-driven finance solutions.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -296,8 +294,14 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 2rem;">
     <h3 style="color: #f1f5f9; margin-bottom: 1rem;">Ready to Analyze Solar Potential?</h3>
-    <p style="color: #94a3b8; font-size: 1.1rem;">
-        Click <strong style="color: #60a5fa;">"Home"</strong> in the sidebar navigation to start analyzing solar investments
+    <p style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 1.5rem;">
+        Click the button below to start analyzing solar investments
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+# Add button to navigate to home
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    if st.button("🏠 Go to Home", use_container_width=True, type="primary"):
+        st.switch_page("Home.py")

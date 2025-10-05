@@ -31,10 +31,14 @@ st.subheader("Analyze Solar Investment Returns using NASA Satellite Data")
 # Sidebar
 with st.sidebar:
     st.header("📍 Location & Parameters")
-    
+
+    # Initialize default values from session state if location was clicked
+    default_lat = st.session_state.get('try_lat', 37.77)
+    default_lon = st.session_state.get('try_lon', -122.42)
+
     col1, col2 = st.columns(2)
-    latitude = col1.number_input("Latitude", -90.0, 90.0, 37.77)
-    longitude = col2.number_input("Longitude", -180.0, 180.0, -122.42)
+    latitude = col1.number_input("Latitude", -90.0, 90.0, default_lat)
+    longitude = col2.number_input("Longitude", -180.0, 180.0, default_lon)
     
     system_size = st.slider("System Size (kW)", 10, 1000, 100)
     electricity_rate = st.slider("Electricity Rate ($/kWh)", 0.05, 0.30, 0.12, 0.01)
@@ -48,32 +52,50 @@ with st.sidebar:
     
     st.divider()
     st.subheader("🌍 Try These Locations")
-    st.write("**Phoenix, AZ**")
+
+    if st.button("☀️ Phoenix, AZ", use_container_width=True):
+        st.session_state.try_lat = 33.45
+        st.session_state.try_lon = -112.07
+        st.rerun()
     st.caption("Lat: 33.45, Lon: -112.07")
-    st.write("**Las Vegas, NV**")
+
+    if st.button("🎰 Las Vegas, NV", use_container_width=True):
+        st.session_state.try_lat = 36.17
+        st.session_state.try_lon = -115.14
+        st.rerun()
     st.caption("Lat: 36.17, Lon: -115.14")
-    st.write("**Miami, FL**")
+
+    if st.button("🏖️ Miami, FL", use_container_width=True):
+        st.session_state.try_lat = 25.76
+        st.session_state.try_lon = -80.19
+        st.rerun()
     st.caption("Lat: 25.76, Lon: -80.19")
 
 # Main area
 if st.session_state.analyzed:
     # Only fetch data if we don't have it yet or parameters changed
-    if (st.session_state.results is None or 
-        st.session_state.latitude != latitude or 
+    if (st.session_state.results is None or
+        st.session_state.latitude != latitude or
         st.session_state.longitude != longitude or
         st.session_state.system_size != system_size or
         st.session_state.electricity_rate != electricity_rate):
-        
+
+        # Update session state with current values
+        st.session_state.latitude = latitude
+        st.session_state.longitude = longitude
+        st.session_state.system_size = system_size
+        st.session_state.electricity_rate = electricity_rate
+
         with st.spinner("🛰️ Fetching NASA satellite data..."):
-            solar_df = get_solar_data(st.session_state.latitude, st.session_state.longitude, '2024-01-01', '2024-12-31')
-            
+            solar_df = get_solar_data(latitude, longitude, '2024-01-01', '2024-12-31')
+
         if solar_df is not None:
             avg_irradiance = solar_df['solar_irradiance'].mean()
-            
+
             # Calculate ROI
             calculator = SolarROICalculator()
-            results = calculator.calculate_roi(avg_irradiance, st.session_state.system_size, st.session_state.electricity_rate)
-            
+            results = calculator.calculate_roi(avg_irradiance, system_size, electricity_rate)
+
             # Store in session state
             st.session_state.solar_df = solar_df
             st.session_state.avg_irradiance = avg_irradiance
@@ -227,7 +249,48 @@ if st.session_state.analyzed:
         ).add_to(m)
         
         st_folium(m, width=700, height=400)
-        
+
+        # Add comparison feature after analysis
+        st.divider()
+        st.subheader("🔄 Compare Multiple Locations")
+
+        with st.expander("📍 Compare 2-3 Locations Side-by-Side", expanded=False):
+            st.write("Enter coordinates for up to 3 locations to compare their solar potential:")
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.write("**Location 1**")
+                lat1_post = st.number_input("Lat 1", -90.0, 90.0, 33.45, key="lat1_post")
+                lon1_post = st.number_input("Lon 1", -180.0, 180.0, -112.07, key="lon1_post")
+                name1_post = st.text_input("Name (optional)", "Phoenix, AZ", key="name1_post")
+
+            with col2:
+                st.write("**Location 2**")
+                lat2_post = st.number_input("Lat 2", -90.0, 90.0, 36.17, key="lat2_post")
+                lon2_post = st.number_input("Lon 2", -180.0, 180.0, -115.14, key="lon2_post")
+                name2_post = st.text_input("Name (optional)", "Las Vegas, NV", key="name2_post")
+
+            with col3:
+                st.write("**Location 3**")
+                lat3_post = st.number_input("Lat 3", -90.0, 90.0, 25.76, key="lat3_post")
+                lon3_post = st.number_input("Lon 3", -180.0, 180.0, -80.19, key="lon3_post")
+                name3_post = st.text_input("Name (optional)", "Miami, FL", key="name3_post")
+
+            comp_system_size_post = st.slider("System Size for Comparison (kW)", 10, 1000, 100, key="comp_size_post")
+            comp_elec_rate_post = st.slider("Electricity Rate for Comparison ($/kWh)", 0.05, 0.30, 0.12, 0.01, key="comp_rate_post")
+
+            if st.button("🔍 Compare Locations", type="primary", key="compare_post"):
+                st.session_state.comparison_done = True
+                st.session_state.comparison_locations = [
+                    (lat1_post, lon1_post, name1_post),
+                    (lat2_post, lon2_post, name2_post),
+                    (lat3_post, lon3_post, name3_post)
+                ]
+                st.session_state.comp_system_size = comp_system_size_post
+                st.session_state.comp_elec_rate = comp_elec_rate_post
+                st.session_state.comparison_data = None  # Reset comparison data
+
 else:
     # Welcome screen
     st.info("👈 Enter location and system parameters in the sidebar, then click 'Analyze Investment'")
@@ -236,42 +299,70 @@ else:
     
     # Add comparison feature
     st.subheader("🔄 Compare Multiple Locations")
-    
+
     with st.expander("📍 Compare 2-3 Locations Side-by-Side", expanded=False):
         st.write("Enter coordinates for up to 3 locations to compare their solar potential:")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             st.write("**Location 1**")
             lat1 = st.number_input("Lat 1", -90.0, 90.0, 33.45, key="lat1")
             lon1 = st.number_input("Lon 1", -180.0, 180.0, -112.07, key="lon1")
             name1 = st.text_input("Name (optional)", "Phoenix, AZ", key="name1")
-        
+
         with col2:
             st.write("**Location 2**")
             lat2 = st.number_input("Lat 2", -90.0, 90.0, 36.17, key="lat2")
             lon2 = st.number_input("Lon 2", -180.0, 180.0, -115.14, key="lon2")
             name2 = st.text_input("Name (optional)", "Las Vegas, NV", key="name2")
-        
+
         with col3:
             st.write("**Location 3**")
             lat3 = st.number_input("Lat 3", -90.0, 90.0, 25.76, key="lat3")
             lon3 = st.number_input("Lon 3", -180.0, 180.0, -80.19, key="lon3")
             name3 = st.text_input("Name (optional)", "Miami, FL", key="name3")
-        
+
         comp_system_size = st.slider("System Size for Comparison (kW)", 10, 1000, 100, key="comp_size")
         comp_elec_rate = st.slider("Electricity Rate for Comparison ($/kWh)", 0.05, 0.30, 0.12, 0.01, key="comp_rate")
-        
-if st.button("🔍 Compare Locations", type="primary"):
-    st.session_state.comparison_done = True
-    
+
+        if st.button("🔍 Compare Locations", type="primary"):
+            st.session_state.comparison_done = True
+            st.session_state.comparison_locations = [
+                (lat1, lon1, name1),
+                (lat2, lon2, name2),
+                (lat3, lon3, name3)
+            ]
+            st.session_state.comp_system_size = comp_system_size
+            st.session_state.comp_elec_rate = comp_elec_rate
+
+    st.markdown("---")
+
+    st.subheader("How it works:")
+    st.markdown("""
+    1. **Enter GPS coordinates** of your desired location
+    2. **Set system size** and electricity rate
+    3. **Get real NASA satellite data** for solar irradiance
+    4. **See detailed ROI analysis** with 25-year projections
+    5. **Compare multiple locations** to find the best spot
+    """)
+
+    st.subheader("What you'll get:")
+    st.markdown("""
+    - ✅ Return on Investment (ROI) percentage
+    - ✅ Payback period in years
+    - ✅ Annual energy production estimates
+    - ✅ 25-year profit projections
+    - ✅ Historical solar irradiance data
+    - ✅ Interactive cash flow charts
+    - ✅ Location maps
+    - ✅ Multi-location comparison
+    """)
+
 if st.session_state.comparison_done:
-    locations = [
-        (lat1, lon1, name1),
-        (lat2, lon2, name2),
-        (lat3, lon3, name3)
-    ]
+    locations = st.session_state.comparison_locations
+    comp_system_size = st.session_state.comp_system_size
+    comp_elec_rate = st.session_state.comp_elec_rate
     
     # Only fetch if we don't have data yet
     if st.session_state.comparison_data is None:
@@ -378,26 +469,3 @@ if st.session_state.comparison_done:
         ).add_to(m)
     
     st_folium(m, width=700, height=500)
-    
-    st.markdown("---")
-    
-    st.subheader("How it works:")
-    st.markdown("""
-    1. **Enter GPS coordinates** of your desired location
-    2. **Set system size** and electricity rate
-    3. **Get real NASA satellite data** for solar irradiance
-    4. **See detailed ROI analysis** with 25-year projections
-    5. **Compare multiple locations** to find the best spot
-    """)
-    
-    st.subheader("What you'll get:")
-    st.markdown("""
-    - ✅ Return on Investment (ROI) percentage
-    - ✅ Payback period in years
-    - ✅ Annual energy production estimates
-    - ✅ 25-year profit projections
-    - ✅ Historical solar irradiance data
-    - ✅ Interactive cash flow charts
-    - ✅ Location maps
-    - ✅ Multi-location comparison
-    """)

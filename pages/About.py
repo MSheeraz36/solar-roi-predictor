@@ -174,7 +174,7 @@ with col1:
         <div class="member-name">Muhammad Sheeraz</div>
         <div class="member-role">ML Engineer & Full-Stack Developer</div>
         <div class="member-bio">
-            Machine learning expert with 5+ years in mobile development, specializing in model training, optimization, and deployment. Experienced in building intelligent, scalable solutions that bridge data science and software engineering.
+            AI/ML Engineer experienced in building end-to-end data-driven applications. Skilled in Python, TensorFlow, and cloud deployment, with expertise in predictive analytics, real-time APIs, and scalable, production-ready machine learning solutions.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -198,8 +198,7 @@ with col3:
         <div class="member-name">Waqad</div>
         <div class="member-role">Mobile App Developer</div>
         <div class="member-bio">
-            Passionate Mobile App Developer skilled in Dart, Node.js, and Python, building seamless, high-performance applications.
-            Experienced in crafting efficient API integrations that connect systems and elevate user experiences. 
+            Mobile App Developer with expertise in Dart, Node.js, and Python, creating high-performance, scalable applications. Skilled in seamless API integration, backend connectivity, and delivering efficient, user-focused mobile experiences across platforms.
         </div>
     </div>
     """, unsafe_allow_html=True)
